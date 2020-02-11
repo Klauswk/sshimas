@@ -76,8 +76,8 @@ fn main() {
     create_table(&connection);
 	
 	if matches.is_present("connect") {
-		get_connection(&connection, matches.value_of("connect").unwrap());
-		start_connection("klaus@192.168.12.10", "klaus");
+		let con = get_connection(&connection, matches.value_of("connect").unwrap());
+		start_connection(&con);
 		exit(0);
 	}
 	
@@ -121,13 +121,13 @@ fn main() {
 	}
 }
 
-fn get_connection(_connection: &Connection, id: &str) {
+fn get_connection(_connection: &Connection, id: &str) -> ConnectionData{
     println!("listing connections");
 
 	let mut stmt = _connection
     .prepare("SELECT Id, User, Ip FROM Connection where Id = ?").unwrap();
 
-    let connections = stmt.query_map(&[&id], |row| {
+    let connection = stmt.query_row(&[&id], |row| {
         Ok(ConnectionData{
 			user: row.get(1)?,
     		ip: row.get(2)?,
@@ -136,12 +136,12 @@ fn get_connection(_connection: &Connection, id: &str) {
 		})
 	}).unwrap();
 	
-	for con in connections {		
-		println!("Connections: {:?}", con);
-	}
+	println!("Connections: {:?}", connection);
+	
+	connection
 }
 
-fn start_connection(connection: &str, password: &str) {
+fn start_connection(connection: &ConnectionData) {
 
 let path = env::current_dir();
 
@@ -163,14 +163,16 @@ println!("The current directory is {}", path_buff.display());
 
 let mut password_array = ["",""];
 
-if !password.is_empty() {
+if !connection.password.is_empty() {
 	password_array[0] = "-pw";
-	password_array[1] = password;
+	password_array[1] = &*connection.password;
 }
+
+let user_ip = [connection.user.to_string(), connection.ip.to_string()].join("@");
 	
 let output = 
     Command::new(path_buff)
-            .args(&["-ssh", connection])
+            .args(&["-ssh", &*user_ip])
 			.args(&password_array)
             .output()
             .expect("failed to execute process");
