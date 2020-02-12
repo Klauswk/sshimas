@@ -1,7 +1,9 @@
 extern crate regex;
 extern crate clap;
 extern crate rpassword;
+extern crate chrono;
 
+use std::io::Read;
 use rpassword::read_password;
 use std::process::exit;
 use rusqlite::NO_PARAMS;
@@ -10,6 +12,8 @@ use clap::{Arg, App};
 use std::io::{self, Write};
 use std::process::Command;
 use std::env;
+use std::fs::{File, OpenOptions};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug)]
 struct ConnectionData {
@@ -77,26 +81,19 @@ fn main() {
 	
 	if matches.is_present("connect") {
 		let con = get_connection(&connection, matches.value_of("connect").unwrap());
+		
+		append_history(&con);
+		
 		start_connection(&con);
 		exit(0);
-	}
-	
-	if matches.is_present("list") {
+	} else if matches.is_present("list") {
 		list_connections(&connection);
 		exit(0);
-	}
-	
-	if matches.is_present("history") {
-		history(&connection);
-		exit(0);
-	}
-	
-	if matches.is_present("add") {
+	} else if matches.is_present("add") {
 		//let re = Regex::new(r"^[A-Za-z][A-Za-z0-9_]*\\@[A-Za-z][A-Za-z0-9_\.]*\\:(\\/[A-Za-z][A-Za-z0-9_]*)*$").unwrap();
 		
 		let new_connection = matches.value_of("add").unwrap();
-		
-		
+				
 		println!("\nType your password or ENTER to leave blank\n");
 		let password = read_password().unwrap();
 		
@@ -111,34 +108,15 @@ fn main() {
 
 		add_connection(&connection, data);
 		exit(0);
-	}
-	
-	if matches.is_present("remove") {
+	} else if matches.is_present("remove") {
 		let id = matches.value_of("remove");
 
 		remove_connection(&connection, id.unwrap());
 		exit(0);
+	} else if matches.is_present("history") {
+		history();
+		exit(0);
 	}
-}
-
-fn get_connection(_connection: &Connection, id: &str) -> ConnectionData{
-    println!("listing connections");
-
-	let mut stmt = _connection
-    .prepare("SELECT Id, User, Ip FROM Connection where Id = ?").unwrap();
-
-    let connection = stmt.query_row(&[&id], |row| {
-        Ok(ConnectionData{
-			user: row.get(1)?,
-    		ip: row.get(2)?,
-    		password: String::new(),
-			id: row.get(0)?,
-		})
-	}).unwrap();
-	
-	println!("Connections: {:?}", connection);
-	
-	connection
 }
 
 fn start_connection(connection: &ConnectionData) {
@@ -161,21 +139,27 @@ let path_buff = if cfg!(target_os = "windows") {
 
 println!("The current directory is {}", path_buff.display());
 
-let mut password_array = ["",""];
-
-if !connection.password.is_empty() {
-	password_array[0] = "-pw";
-	password_array[1] = &*connection.password;
-}
+println!("{:?}", connection);
 
 let user_ip = [connection.user.to_string(), connection.ip.to_string()].join("@");
+
+let mut password_array = ["",""];
+
+let output = if !connection.password.is_empty() {
+	password_array[0] = "-pw";
+	password_array[1] = &*connection.password;
 	
-let output = 
-    Command::new(path_buff)
+	Command::new(path_buff)
             .args(&["-ssh", &*user_ip])
 			.args(&password_array)
             .output()
-            .expect("failed to execute process");
+            .expect("failed to execute process")
+} else {
+	Command::new(path_buff)
+            .args(&["-ssh", &*user_ip])
+            .output()
+            .expect("failed to execute process")
+};
 
 println!("status: {}", output.status);
 io::stdout().write_all(&output.stdout).unwrap();
@@ -207,6 +191,22 @@ fn remove_connection(_connection: &Connection, id: &str) {
     };
 }
 
+fn get_connection(_connection: &Connection, id: &str) -> ConnectionData{
+    println!("fetching connections");
+
+	let mut stmt = _connection
+    .prepare("SELECT Id, User, Ip, Password FROM Connection where Id = ?").unwrap();
+
+    stmt.query_row(&[&id], |row| {
+        Ok(ConnectionData{
+			user: row.get(1)?,
+    		ip: row.get(2)?,
+    		password: row.get(3)?,
+			id: row.get(0)?,
+		})
+	}).unwrap()
+}
+
 fn list_connections(connection: &Connection) {
     println!("listing connections");
 
@@ -227,8 +227,28 @@ fn list_connections(connection: &Connection) {
 	}
 }
 
-fn history(_connection: &Connection) {
-    println!("showing history");
+fn append_history(_connection: &ConnectionData) {
+    let mut file = OpenOptions::new()
+        .append(true)
+		.create(true)
+        .open(".history")
+        .unwrap();
+
+	let user_ip = [_connection.user.to_string(), _connection.ip.to_string()].join("@");
+
+    let now: DateTime<Utc> = Utc::now();
+
+    if let Err(e) = writeln!(file, "{}\t{}\t{}", _connection.id, now.format("%d-%m-%Y"), user_ip) {
+        eprintln!("Couldn't write to file: {}", e);
+    }
+}
+
+fn history() {
+	let mut f = File::open(".history").unwrap();
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+
+	println!("{}", s);
 }
 
 fn create_connection(db_name: &str) -> Connection {
