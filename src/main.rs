@@ -191,20 +191,25 @@ fn remove_connection(_connection: &Connection, id: &str) {
     };
 }
 
-fn get_connection(_connection: &Connection, id: &str) -> ConnectionData{
+fn get_connection(_connection: &Connection, id: &str) -> ConnectionData {
     println!("fetching connections");
 
 	let mut stmt = _connection
     .prepare("SELECT Id, User, Ip, Password FROM Connection where Id = ?").unwrap();
 
-    stmt.query_row(&[&id], |row| {
+    let result = stmt.query_row(&[&id], |row| {
         Ok(ConnectionData{
 			user: row.get(1)?,
     		ip: row.get(2)?,
     		password: row.get(3)?,
 			id: row.get(0)?,
 		})
-	}).unwrap()
+	});
+	
+	match result {
+		Ok(data) => data,
+		Err(_err) => panic!("Not data found for the id: {} ", id)
+	}
 }
 
 fn list_connections(connection: &Connection) {
@@ -213,14 +218,17 @@ fn list_connections(connection: &Connection) {
 	let mut stmt = connection
     .prepare("SELECT Id, User, Ip FROM Connection").unwrap();
 
-    let connections = stmt.query_map(NO_PARAMS, |row| {
+    let connections = match stmt.query_map(NO_PARAMS, |row| {
         Ok(ConnectionData{
 			user: row.get(1)?,
     		ip: row.get(2)?,
     		password: String::new(),
 			id: row.get(0)?,
 		})
-	}).unwrap();
+	}) {
+		Ok(connections) => connections,
+		Err(err) => panic!("An error occour while fetching data from the database: {}", err)
+	};
 	
 	for con in connections {		
 		println!("Connections: {:?}", con);
