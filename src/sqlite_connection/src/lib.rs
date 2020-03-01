@@ -48,7 +48,7 @@ impl SqliteConnection {
 }
 
 impl Add for SqliteConnection {
-	fn add(&self, connection: &ConnectionData) -> Result<&str, &str> {
+	fn add(&self, connection: &ConnectionData) -> Result<&str, String> {
 		println!("adding connection {:?}", connection);
 
 		match self.connection.execute(
@@ -56,7 +56,7 @@ impl Add for SqliteConnection {
 			&[&connection.user, &connection.ip, &connection.password],
 		) {
 			Ok(_ok) => Ok("Success"),
-			Err(_e) => Err("An error occour while adding the connection"),
+			Err(_e) => Err("An error occour while adding the connection".to_string()),
 		}
 	}
 }
@@ -109,7 +109,7 @@ impl Connect for SqliteConnection {
 }
 
 impl Remove for SqliteConnection {
-	fn remove(&self, connection: &ConnectionData) -> Result<&str, &str> {
+	fn remove(&self, connection: &ConnectionData) -> Result<&str, String> {
 		println!("removing connection {}", connection.id);
 
 		match self
@@ -117,13 +117,13 @@ impl Remove for SqliteConnection {
 			.execute("DELETE FROM Connection where Id = ?1", &[&connection.id])
 		{
 			Ok(_connection) => Ok("Success"),
-			Err(_e) => Err("An error occour while removing the connection with id: {}"),
+			Err(_e) => Err(format!("An error occour while removing the connection with id: {}",connection.id)),
 		}
 	}
 }
 
 impl Get for SqliteConnection {
-	fn get(&self, id: &str) -> Result<ConnectionData, &str> {
+	fn get(&self, id: &str) -> Result<ConnectionData, String> {
 		println!("fetching connections");
 
 		let mut stmt = self
@@ -139,15 +139,16 @@ impl Get for SqliteConnection {
 				id: row.get(0)?,
 			})
 		});
+
 		match result {
 			Ok(data) => Ok(data),
-			Err(_err) => Err("No data found for the id "),
+			Err(_err) => Err(format!("No data found for the id: {}", id)),
 		}
 	}
 }
 
 impl List for SqliteConnection {
-	fn list(&self) -> Result<Vec<ConnectionData>, &str> {
+	fn list(&self) -> Result<Vec<ConnectionData>, String> {
 		println!("listing connections");
 
 		let mut stmt = self
@@ -174,7 +175,7 @@ impl List for SqliteConnection {
 				
 				Ok(conns)
 			}
-			Err(_err) => Err("An error occour while fetching data from the database"),
+			Err(_err) => Err("An error occour while fetching data from the database".to_string()),
 		}
 	}
 }

@@ -2,7 +2,7 @@ use std::result::{Result};
 use common::ConnectionData;
 
 pub trait Add {
-    fn add(&self, connection: &ConnectionData) -> Result<&str, &str>;
+    fn add(&self, connection: &ConnectionData) -> Result<&str, String>;
 
     fn help(&self) -> Option<&str> {
         None
@@ -18,7 +18,7 @@ pub trait Connect {
 }
 
 pub trait Remove {
-    fn remove(&self, connection: &ConnectionData) -> Result<&str, &str>;
+    fn remove(&self, connection: &ConnectionData) -> Result<&str, String>;
 
     fn help(&self) -> Option<&str> {
         None
@@ -26,7 +26,7 @@ pub trait Remove {
 }
 
 pub trait Get {
-    fn get(&self, id: &str) -> Result<ConnectionData, &str>;
+    fn get(&self, id: &str) -> Result<ConnectionData, String>;
 
     fn help(&self) -> Option<&str> {
         None
@@ -34,7 +34,7 @@ pub trait Get {
 }
 
 pub trait List {
-    fn list(&self) -> Result<Vec<ConnectionData>, &str>;
+    fn list(&self) -> Result<Vec<ConnectionData>, String>;
 
     fn help(&self) -> Option<&str> {
         None
