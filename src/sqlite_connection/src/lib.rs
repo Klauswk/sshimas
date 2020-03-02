@@ -3,6 +3,7 @@ extern crate clap;
 extern crate regex;
 extern crate rpassword;
 extern crate rusqlite;
+extern crate uuid;
 
 use rusqlite::{params, Connection, NO_PARAMS};
 use std::io;
@@ -15,6 +16,7 @@ use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::process::Command;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct SqliteConnection {
@@ -35,7 +37,7 @@ impl SqliteConnection {
 		match conn.connection
 		    .execute(
 		        "
-		        CREATE TABLE IF NOT EXISTS Connection(Id INTEGER PRIMARY KEY, User TEXT NOT NULL, Ip TEXT NOT NULL, Password BLOB);
+		        CREATE TABLE IF NOT EXISTS Connection(Id CHAR(36) PRIMARY KEY, User TEXT NOT NULL, Ip TEXT NOT NULL, Password BLOB);
 		        ",
 		 		params![],
 		    ) {
@@ -51,12 +53,16 @@ impl Add for SqliteConnection {
 	fn add(&self, connection: &ConnectionData) -> Result<&str, String> {
 		println!("adding connection {:?}", connection);
 
+		let id = Uuid::new_v4();
+
+		println!("UUID: {}",id);
+
 		match self.connection.execute(
-			"INSERT INTO Connection(User,Ip,Password) VALUES(?1,?2,?3)",
-			&[&connection.user, &connection.ip, &connection.password],
+			"INSERT INTO Connection(Id, User,Ip,Password) VALUES(?1,?2,?3,?4)",
+			&[&id.to_string(), &connection.user, &connection.ip, &connection.password],
 		) {
 			Ok(_ok) => Ok("Success"),
-			Err(_e) => Err("An error occour while adding the connection".to_string()),
+			Err(_e) => panic!(_e),
 		}
 	}
 }
@@ -128,7 +134,7 @@ impl Get for SqliteConnection {
 
 		let mut stmt = self
 			.connection
-			.prepare("SELECT Id, User, Ip, Password FROM Connection where Id = ?")
+			.prepare("SELECT Id, User, Ip, Password FROM Connection where Id like ? || '%'")
 			.unwrap();
 
 		let result = stmt.query_row(&[&id], |row| {

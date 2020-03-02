@@ -82,7 +82,7 @@ fn main() {
 			user: user_and_ip[0].to_string(),
     		ip: user_and_ip[1].to_string(),
     		password,
-			id: 0,
+			id: String::new(),
 		};
 
 		println!("{}",sqlite_connection.add(&data).unwrap());
@@ -91,7 +91,7 @@ fn main() {
 		let id = matches.value_of("remove").unwrap();
 
 		let result = sqlite_connection.remove(&ConnectionData{
-			id: id.parse::<u32>().unwrap(),
+			id: id.parse::<String>().unwrap(),
 			password: String::new(),
 			ip: String::new(),
 			user: String::new()
