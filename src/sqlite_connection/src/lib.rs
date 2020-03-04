@@ -4,6 +4,17 @@ extern crate regex;
 extern crate rpassword;
 extern crate rusqlite;
 extern crate uuid;
+extern crate aes;
+extern crate block_modes;
+extern crate rand;
+
+use aes::Aes128;
+use block_modes::{BlockMode, Cbc};
+use block_modes::block_padding::Pkcs7;
+
+use rand::prelude::*;
+use std::path::Path;
+use std::fs;
 
 use rusqlite::{params, Connection, NO_PARAMS};
 use std::io;
@@ -18,13 +29,50 @@ use std::io::{Read, Write};
 use std::process::Command;
 use uuid::Uuid;
 
+type Aes128Cbc = Cbc<Aes128, Pkcs7>;
+
 #[derive(Debug)]
 pub struct SqliteConnection {
 	connection: rusqlite::Connection,
 }
 
+fn create_sk() {
+	if !Path::new(".sk").exists() {
+		let mut file = OpenOptions::new()
+		.create(true)
+		.write(true)
+		.open(".sk")
+		.unwrap();
+
+		let mut rng = rand::thread_rng();
+
+		let key: [u8; 16] = rng.gen();
+
+		file.write_all(&key).expect("An error occour while creating the sk");
+	}
+}
+
+fn get_key() -> [u8; 16] {
+	if Path::new(".sk").exists() {
+		let data = fs::read(".sk").expect("Unable to read file");
+		
+		let mut rng = rand::thread_rng();
+
+		let mut key: [u8; 16] = rng.gen();
+
+		for x in 0..16 {
+			key[x] = *data.get(x).unwrap();
+		}
+
+		return key;
+	}
+	panic!("Couldn't open the .sk");
+}
+
 impl SqliteConnection {
+
 	pub fn new(db_name: &str) -> Self {
+		create_sk();
 		let conn = if db_name.is_empty() {
 			return SqliteConnection {
 				connection: Connection::open_in_memory().unwrap(),
@@ -37,11 +85,11 @@ impl SqliteConnection {
 		match conn.connection
 		    .execute(
 		        "
-		        CREATE TABLE IF NOT EXISTS Connection(Id CHAR(36) PRIMARY KEY, User TEXT NOT NULL, Ip TEXT NOT NULL, Password BLOB);
+		        CREATE TABLE IF NOT EXISTS Connection(Id CHAR(36) PRIMARY KEY, User TEXT NOT NULL, Ip TEXT NOT NULL, Password BLOB, IV Blob);
 		        ",
 		 		params![],
 		    ) {
-		        Ok(_connection) => println!("Database created"),
+		        Ok(_connection) => {},
 		        Err(e) => panic!("An error occour while creating the database: {}", e) 
 		    };
 
@@ -51,15 +99,28 @@ impl SqliteConnection {
 
 impl Add for SqliteConnection {
 	fn add(&self, connection: &ConnectionData) -> Result<&str, String> {
-		println!("adding connection {:?}", connection);
-
 		let id = Uuid::new_v4();
 
-		println!("UUID: {}",id);
+		println!("{}",id);
+
+		let mut rng = rand::thread_rng();
+
+		let iv: [u8; 16] = rng.gen();
+
+		let cipher = Aes128Cbc::new_var(&get_key(), &iv).unwrap();
+
+		let mut buffer = [0u8; 32];
+		let plaintext: &str = &connection.password;
+		let pos = connection.password.len();
+		
+		buffer[..pos].copy_from_slice(plaintext.as_bytes());
+		let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
+
+		let vec: Vec<u8> = ciphertext.to_vec();
 
 		match self.connection.execute(
-			"INSERT INTO Connection(Id, User,Ip,Password) VALUES(?1,?2,?3,?4)",
-			&[&id.to_string(), &connection.user, &connection.ip, &connection.password],
+			"INSERT INTO Connection(Id, User,Ip,Password, IV) VALUES(?1,?2,?3,?4,?5)",
+			params![&id.to_string(), &connection.user, &connection.ip, &vec, &iv.to_vec()],
 		) {
 			Ok(_ok) => Ok("Success"),
 			Err(_e) => panic!(_e),
@@ -116,11 +177,9 @@ impl Connect for SqliteConnection {
 
 impl Remove for SqliteConnection {
 	fn remove(&self, connection: &ConnectionData) -> Result<&str, String> {
-		println!("removing connection {}", connection.id);
-
 		match self
 			.connection
-			.execute("DELETE FROM Connection where Id = ?1", &[&connection.id])
+			.execute("DELETE FROM Connection where Id like ? || '%'", &[&connection.id])
 		{
 			Ok(_connection) => Ok("Success"),
 			Err(_e) => Err(format!("An error occour while removing the connection with id: {}",connection.id)),
@@ -130,33 +189,38 @@ impl Remove for SqliteConnection {
 
 impl Get for SqliteConnection {
 	fn get(&self, id: &str) -> Result<ConnectionData, String> {
-		println!("fetching connections");
-
 		let mut stmt = self
 			.connection
-			.prepare("SELECT Id, User, Ip, Password FROM Connection where Id like ? || '%'")
+			.prepare("SELECT Id, User, Ip, Password, IV FROM Connection where Id like ? || '%'")
 			.unwrap();
 
 		let result = stmt.query_row(&[&id], |row| {
+			
+			let iv: Vec<u8> = row.get(4)?;
+
+			let mut cryp_pass: Vec<u8> = row.get(3)?;
+
+			let cipher = Aes128Cbc::new_var(&get_key(), &iv).unwrap();
+
+			let decrypted_ciphertext = cipher.decrypt_vec(&mut cryp_pass).unwrap();
+			
 			Ok(ConnectionData {
 				user: row.get(1)?,
 				ip: row.get(2)?,
-				password: row.get(3)?,
+				password: String::from_utf8(decrypted_ciphertext).unwrap(),
 				id: row.get(0)?,
 			})
 		});
 
 		match result {
 			Ok(data) => Ok(data),
-			Err(_err) => Err(format!("No data found for the id: {}", id)),
+			Err(err) => panic!(err),
 		}
 	}
 }
 
 impl List for SqliteConnection {
 	fn list(&self) -> Result<Vec<ConnectionData>, String> {
-		println!("listing connections");
-
 		let mut stmt = self
 			.connection
 			.prepare("SELECT Id, User, Ip FROM Connection")

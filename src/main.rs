@@ -1,7 +1,10 @@
-extern crate regex;
 extern crate clap;
 extern crate rpassword;
-extern crate chrono;
+
+use common::ConnectionData;
+
+#[cfg(feature = "sqlite_connection")]
+use sqlite_connection::SqliteConnection;
 
 use action::*;
 use rpassword::read_password;
@@ -9,8 +12,6 @@ use std::process::{exit};
 use clap::{Arg, App};
 use std::env;
 
-use common::ConnectionData;
-use sqlite_connection::SqliteConnection;
 
 fn main() {
 	let version = format!("{}.{}.{}{}",
@@ -51,6 +52,11 @@ fn main() {
                                .help("Show the history of connections"))
                           .get_matches();
 	
+	if matches.args.is_empty() {
+		println!("{}",matches.usage());
+		exit(0);
+	}
+
 	let sqlite_connection = SqliteConnection::new(".db");
 		
 	if matches.is_present("connect") {
