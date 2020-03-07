@@ -36,6 +36,23 @@ pub struct SqliteConnection {
 	connection: rusqlite::Connection,
 }
 
+fn cipher_password(plaintext: &str) -> (Vec<u8>, [u8; 16])  {
+
+	let mut rng = rand::thread_rng();
+
+	let iv: [u8; 16] = rng.gen();
+
+	let cipher = Aes128Cbc::new_var(&get_key(), &iv).unwrap();
+
+	let mut buffer = [0u8; 32];
+	let pos = plaintext.len();
+	
+	buffer[..pos].copy_from_slice(plaintext.as_bytes());
+	let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
+
+	(ciphertext.to_vec(), iv)
+}
+
 fn create_sk() {
 	if !Path::new(".sk").exists() {
 		let mut file = OpenOptions::new()
@@ -103,27 +120,42 @@ impl Add for SqliteConnection {
 
 		println!("{}",id);
 
-		let mut rng = rand::thread_rng();
-
-		let iv: [u8; 16] = rng.gen();
-
-		let cipher = Aes128Cbc::new_var(&get_key(), &iv).unwrap();
-
-		let mut buffer = [0u8; 32];
-		let plaintext: &str = &connection.password;
-		let pos = connection.password.len();
-		
-		buffer[..pos].copy_from_slice(plaintext.as_bytes());
-		let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
-
-		let vec: Vec<u8> = ciphertext.to_vec();
+		let vec: (Vec<u8>, [u8; 16]) = cipher_password(&connection.password);
 
 		match self.connection.execute(
 			"INSERT INTO Connection(Id, User,Ip,Password, IV) VALUES(?1,?2,?3,?4,?5)",
-			params![&id.to_string(), &connection.user, &connection.ip, &vec, &iv.to_vec()],
+			params![&id.to_string(), &connection.user, &connection.ip, &vec.0, &vec.1.to_vec()],
 		) {
 			Ok(_ok) => Ok("Success"),
 			Err(_e) => panic!(_e),
+		}
+	}
+}
+
+impl Remove for SqliteConnection {
+	fn remove(&self, connection: &ConnectionData) -> Result<&str, String> {
+		match self
+			.connection
+			.execute("DELETE FROM Connection where Id like ? || '%'", &[&connection.id])
+		{
+			Ok(_connection) => Ok("Success"),
+			Err(_e) => Err(format!("An error occour while removing the connection with id: {}",connection.id)),
+		}
+	}
+}
+
+impl Edit for SqliteConnection {
+	fn edit(&self, connection: &ConnectionData) -> Result<&str, String> {
+		
+		let vec: (Vec<u8>, [u8; 16]) = cipher_password(&connection.password);
+
+		match self
+			.connection
+			.execute("update Connection set User = ?1, Ip = ?2, Password = ?3, IV = ?4 where Id = ?5", 
+			params![&connection.user, &connection.ip, &vec.0, &vec.1.to_vec(), &connection.id],
+		){
+			Ok(_connection) => Ok("Success"),
+			Err(_e) => Err(format!("An error occour while editing the connection with id: {}",connection.id)),
 		}
 	}
 }
@@ -172,18 +204,6 @@ impl Connect for SqliteConnection {
 		println!("status: {}", output.status);
 		io::stdout().write_all(&output.stdout).unwrap();
 		io::stderr().write_all(&output.stderr).unwrap();
-	}
-}
-
-impl Remove for SqliteConnection {
-	fn remove(&self, connection: &ConnectionData) -> Result<&str, String> {
-		match self
-			.connection
-			.execute("DELETE FROM Connection where Id like ? || '%'", &[&connection.id])
-		{
-			Ok(_connection) => Ok("Success"),
-			Err(_e) => Err(format!("An error occour while removing the connection with id: {}",connection.id)),
-		}
 	}
 }
 

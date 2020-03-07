@@ -25,6 +25,14 @@ pub trait Remove {
     }
 }
 
+pub trait Edit {
+    fn edit(&self, connection: &ConnectionData) -> Result<&str, String>;
+
+    fn help(&self) -> Option<&str> {
+        None
+    }
+}
+
 pub trait Get {
     fn get(&self, id: &str) -> Result<ConnectionData, String>;
 
