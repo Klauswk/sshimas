@@ -147,8 +147,11 @@ fn main() {
 		exit(0);
 	} else if matches.is_present("list") {
 		let result = sqlite_connection.list();
+
+		println!("{}\t{}\t{}","id", "user", "ip");
+		
 		for r in result.unwrap() {
-			println!("Connections: {:?}", r);
+			println!("{}\t{}\t{}", r.id, r.user, r.ip);
 		}
 		exit(0);
 	} else if matches.is_present("add") {

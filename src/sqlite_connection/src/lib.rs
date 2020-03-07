@@ -276,6 +276,7 @@ impl History for SqliteConnection {
 		let mut s = String::new();
 		f.read_to_string(&mut s).unwrap();
 
+		println!("{}\t{}\t{}","id", "user", "ip");
 		println!("{}", s);
 	}
 
