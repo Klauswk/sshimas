@@ -214,7 +214,7 @@ impl Get for SqliteConnection {
 
 		match result {
 			Ok(data) => Ok(data),
-			Err(err) => panic!(err),
+			Err(_err) => Err(format!("No data found for id {}", &id)),
 		}
 	}
 }

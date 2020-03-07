@@ -23,7 +23,9 @@ fn main() {
 	let matches = App::new("Shhimas")
                           .version(&*version)
                           .author("Klaus Klein")
-                          .about("A database for ssh connections")
+						  .about("A database for ssh connections")
+						  .arg(Arg::with_name("INPUT")
+						  .index(1))
                           .arg(Arg::with_name("add")
                                .short("a")
                                .long("add")
@@ -58,7 +60,17 @@ fn main() {
 	}
 
 	let sqlite_connection = SqliteConnection::new(".db");
+	
+	if matches.is_present("INPUT") {
+		let con = sqlite_connection.get(matches.value_of("INPUT").unwrap()).unwrap();
 		
+		sqlite_connection.append(&con);
+		
+		sqlite_connection.connect(&con);
+		
+		exit(0);
+	}
+	
 	if matches.is_present("connect") {
 		let con = sqlite_connection.get(matches.value_of("connect").unwrap()).unwrap();
 		
