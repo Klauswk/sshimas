@@ -17,6 +17,7 @@ uuid = { version = "0.8.1", features = ["serde", "v4"] }
 aes = "0.3.2"
 block-modes = "0.3.3"
 rand = "0.7.3"
+dirs = "2.0"
 
 [dependencies.rusqlite]
 version = "0.21.0"

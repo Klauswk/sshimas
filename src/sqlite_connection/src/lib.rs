@@ -1,20 +1,21 @@
+extern crate aes;
+extern crate block_modes;
 extern crate chrono;
 extern crate clap;
+extern crate dirs;
+extern crate rand;
 extern crate regex;
 extern crate rpassword;
 extern crate rusqlite;
 extern crate uuid;
-extern crate aes;
-extern crate block_modes;
-extern crate rand;
 
 use aes::Aes128;
-use block_modes::{BlockMode, Cbc};
 use block_modes::block_padding::Pkcs7;
+use block_modes::{BlockMode, Cbc};
 
 use rand::prelude::*;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 use rusqlite::{params, Connection, NO_PARAMS};
 use std::io;
@@ -29,6 +30,8 @@ use std::io::{Read, Write};
 use std::process::Command;
 use uuid::Uuid;
 
+use dirs::data_local_dir;
+
 type Aes128Cbc = Cbc<Aes128, Pkcs7>;
 
 #[derive(Debug)]
@@ -36,8 +39,7 @@ pub struct SqliteConnection {
 	connection: rusqlite::Connection,
 }
 
-fn cipher_password(plaintext: &str) -> (Vec<u8>, [u8; 16])  {
-
+fn cipher_password(plaintext: &str) -> (Vec<u8>, [u8; 16]) {
 	let mut rng = rand::thread_rng();
 
 	let iv: [u8; 16] = rng.gen();
@@ -46,7 +48,6 @@ fn cipher_password(plaintext: &str) -> (Vec<u8>, [u8; 16])  {
 
 	let mut buffer = [0u8; 32];
 	let pos = plaintext.len();
-	
 	buffer[..pos].copy_from_slice(plaintext.as_bytes());
 	let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
 
@@ -56,23 +57,23 @@ fn cipher_password(plaintext: &str) -> (Vec<u8>, [u8; 16])  {
 fn create_sk() {
 	if !Path::new(".sk").exists() {
 		let mut file = OpenOptions::new()
-		.create(true)
-		.write(true)
-		.open(".sk")
-		.unwrap();
+			.create(true)
+			.write(true)
+			.open(".sk")
+			.unwrap();
 
 		let mut rng = rand::thread_rng();
 
 		let key: [u8; 16] = rng.gen();
 
-		file.write_all(&key).expect("An error occour while creating the sk");
+		file.write_all(&key)
+			.expect("An error occour while creating the sk");
 	}
 }
 
 fn get_key() -> [u8; 16] {
 	if Path::new(".sk").exists() {
 		let data = fs::read(".sk").expect("Unable to read file");
-		
 		let mut rng = rand::thread_rng();
 
 		let mut key: [u8; 16] = rng.gen();
@@ -87,7 +88,6 @@ fn get_key() -> [u8; 16] {
 }
 
 impl SqliteConnection {
-
 	pub fn new(db_name: &str) -> Self {
 		create_sk();
 		let conn = if db_name.is_empty() {
@@ -95,8 +95,14 @@ impl SqliteConnection {
 				connection: Connection::open_in_memory().unwrap(),
 			};
 		} else {
+			let mut db_location = data_local_dir().unwrap();
+			db_location.push("sshimas");
+			fs::create_dir_all(&db_location)
+				.expect("Couldn`t create the base folder for this application");
+			db_location.push(db_name);
+
 			SqliteConnection {
-				connection: Connection::open(db_name).unwrap(),
+				connection: Connection::open(db_location.to_str().unwrap()).unwrap(),
 			}
 		};
 		match conn.connection
@@ -118,13 +124,19 @@ impl Add for SqliteConnection {
 	fn add(&self, connection: &ConnectionData) -> Result<&str, String> {
 		let id = Uuid::new_v4();
 
-		println!("{}",id);
+		println!("{}", id);
 
 		let vec: (Vec<u8>, [u8; 16]) = cipher_password(&connection.password);
 
 		match self.connection.execute(
 			"INSERT INTO Connection(Id, User,Ip,Password, IV) VALUES(?1,?2,?3,?4,?5)",
-			params![&id.to_string(), &connection.user, &connection.ip, &vec.0, &vec.1.to_vec()],
+			params![
+				&id.to_string(),
+				&connection.user,
+				&connection.ip,
+				&vec.0,
+				&vec.1.to_vec()
+			],
 		) {
 			Ok(_ok) => Ok("Success"),
 			Err(_e) => panic!(_e),
@@ -134,28 +146,38 @@ impl Add for SqliteConnection {
 
 impl Remove for SqliteConnection {
 	fn remove(&self, connection: &ConnectionData) -> Result<&str, String> {
-		match self
-			.connection
-			.execute("DELETE FROM Connection where Id like ? || '%'", &[&connection.id])
-		{
+		match self.connection.execute(
+			"DELETE FROM Connection where Id like ? || '%'",
+			&[&connection.id],
+		) {
 			Ok(_connection) => Ok("Success"),
-			Err(_e) => Err(format!("An error occour while removing the connection with id: {}",connection.id)),
+			Err(_e) => Err(format!(
+				"An error occour while removing the connection with id: {}",
+				connection.id
+			)),
 		}
 	}
 }
 
 impl Edit for SqliteConnection {
 	fn edit(&self, connection: &ConnectionData) -> Result<&str, String> {
-		
 		let vec: (Vec<u8>, [u8; 16]) = cipher_password(&connection.password);
 
-		match self
-			.connection
-			.execute("update Connection set User = ?1, Ip = ?2, Password = ?3, IV = ?4 where Id = ?5", 
-			params![&connection.user, &connection.ip, &vec.0, &vec.1.to_vec(), &connection.id],
-		){
+		match self.connection.execute(
+			"update Connection set User = ?1, Ip = ?2, Password = ?3, IV = ?4 where Id = ?5",
+			params![
+				&connection.user,
+				&connection.ip,
+				&vec.0,
+				&vec.1.to_vec(),
+				&connection.id
+			],
+		) {
 			Ok(_connection) => Ok("Success"),
-			Err(_e) => Err(format!("An error occour while editing the connection with id: {}",connection.id)),
+			Err(_e) => Err(format!(
+				"An error occour while editing the connection with id: {}",
+				connection.id
+			)),
 		}
 	}
 }
@@ -215,7 +237,6 @@ impl Get for SqliteConnection {
 			.unwrap();
 
 		let result = stmt.query_row(&[&id], |row| {
-			
 			let iv: Vec<u8> = row.get(4)?;
 
 			let mut cryp_pass: Vec<u8> = row.get(3)?;
@@ -223,7 +244,6 @@ impl Get for SqliteConnection {
 			let cipher = Aes128Cbc::new_var(&get_key(), &iv).unwrap();
 
 			let decrypted_ciphertext = cipher.decrypt_vec(&mut cryp_pass).unwrap();
-			
 			Ok(ConnectionData {
 				user: row.get(1)?,
 				ip: row.get(2)?,
@@ -254,15 +274,12 @@ impl List for SqliteConnection {
 				id: row.get(0)?,
 			})
 		});
-		
 		match connections {
 			Ok(connections) => {
 				let mut conns = Vec::<ConnectionData>::new();
-			
 				for con in connections {
 					conns.push(con.unwrap());
 				}
-				
 				Ok(conns)
 			}
 			Err(_err) => Err("An error occour while fetching data from the database".to_string()),
@@ -272,19 +289,30 @@ impl List for SqliteConnection {
 
 impl History for SqliteConnection {
 	fn history(&self) {
-		let mut f = File::open(".history").unwrap();
-		let mut s = String::new();
-		f.read_to_string(&mut s).unwrap();
+		let mut history_location = data_local_dir().unwrap();
+		history_location.push("sshimas");
+		history_location.push(".history");
 
-		println!("{}\t{}\t{}","id", "user", "ip");
-		println!("{}", s);
+		println!("{}\t{}\t{}", "id", "user", "ip");
+		
+		if history_location.exists() {
+			let mut f = File::open(history_location).unwrap();
+			let mut s = String::new();
+			f.read_to_string(&mut s).unwrap();
+
+			println!("{}", s);
+		}
 	}
 
 	fn append(&self, _connection: &ConnectionData) {
+		let mut history_location = data_local_dir().unwrap();
+		history_location.push("sshimas");
+		history_location.push(".history");
+
 		let mut file = OpenOptions::new()
 			.append(true)
 			.create(true)
-			.open(".history")
+			.open(history_location)
 			.unwrap();
 		let user_ip = [_connection.user.to_string(), _connection.ip.to_string()].join("@");
 
