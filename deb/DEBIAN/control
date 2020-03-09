@@ -1,0 +1,10 @@
+Package: sshimas
+Version: 0.1.0
+Architecture: amd64
+Maintainer: rhyrkon
+Installed-Size: 5
+Depends: bash
+Section: utils
+Priority: optional
+Homepage: github.com/klauswk/sshimas
+Description: An simple database for fast ssh connection
