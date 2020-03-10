@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <metadata>
+    <id>sshimas</id>
+    <title>sshimas (Install)</title>
+    <version>0.1.0</version>
+    <authors>klauswk</authors>
+    <projectUrl>http://github.com/klauswk/sshimas</projectUrl>
+    <tags>sshimas ssh sqlite</tags>
+    <summary>An simple database for keep and connect to your ssh instances</summary>
+    <description>An simple database for keep and connect to your ssh instances</description>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

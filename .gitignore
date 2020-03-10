@@ -6,3 +6,5 @@
 .sk
 *.deb
 deb/bin/
+chocolatey/**/*.exe
+*.nupkg
