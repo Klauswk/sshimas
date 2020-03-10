@@ -55,11 +55,15 @@ fn cipher_password(plaintext: &str) -> (Vec<u8>, [u8; 16]) {
 }
 
 fn create_sk() {
-	if !Path::new(".sk").exists() {
+	let mut sk_location = data_local_dir().unwrap();
+	sk_location.push("sshimas");
+	sk_location.push(".sk");
+
+	if !Path::new(&sk_location).exists() {
 		let mut file = OpenOptions::new()
 			.create(true)
 			.write(true)
-			.open(".sk")
+			.open(sk_location)
 			.unwrap();
 
 		let mut rng = rand::thread_rng();
@@ -72,8 +76,12 @@ fn create_sk() {
 }
 
 fn get_key() -> [u8; 16] {
-	if Path::new(".sk").exists() {
-		let data = fs::read(".sk").expect("Unable to read file");
+	let mut sk_location = data_local_dir().unwrap();
+	sk_location.push("sshimas");
+	sk_location.push(".sk");
+
+	if Path::new(&sk_location).exists() {
+		let data = fs::read(sk_location).expect("Unable to read file");
 		let mut rng = rand::thread_rng();
 
 		let mut key: [u8; 16] = rng.gen();
@@ -184,7 +192,11 @@ impl Edit for SqliteConnection {
 
 impl Connect for SqliteConnection {
 	fn connect(&self, connection: &ConnectionData) {
-		let path = env::current_dir();
+		let path = if cfg!(debug_assertions) {
+			env::current_dir()
+		} else {
+			env::current_exe()
+		};
 
 		if path.is_err() {
 			panic!("Couldn`t find the correct path of the application");
@@ -192,10 +204,18 @@ impl Connect for SqliteConnection {
 
 		let path_buff = if cfg!(target_os = "windows") {
 			let mut windows_path = path.ok().unwrap();
+			
+			#[cfg(not(debug_assertions))]
+			windows_path.pop();
+
 			windows_path.push("bin\\putty.exe");
 			windows_path
 		} else {
 			let mut unix_path = path.ok().unwrap();
+			
+			#[cfg(not(debug_assertions))]
+			unix_path.pop();
+
 			unix_path.push("bin/plink");
 			unix_path
 		};
