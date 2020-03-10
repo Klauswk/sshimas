@@ -1,4 +1,4 @@
-#cargo build --release;
+cargo build --release;
 
 $location = './chocolatey/tools/bin'
 
