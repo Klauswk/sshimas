@@ -21,7 +21,7 @@ deploy:
   provider: GitHub
   auth_token:
     secure: nuSGI1gaApM0IIUBX0eIQ/6wWj55cNEQIqAH4HmiNLjoRdKMwYHw+bPoUMuwFyxz
-  artifact: %APPVEYOR_BUILD_FOLDER%\target\release\sshimas.exe
+  artifact: target\release\sshimas.exe
   prerelease: true
   on:
     branch: master
