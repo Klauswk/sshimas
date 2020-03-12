@@ -15,6 +15,10 @@ install:
 build_script: 
   - cargo build --release
 
+artifacts:
+- path: target\release\sshimas.exe
+  name: sshimas.exe
+
 deploy:
   release: sshimas-v$(appveyor_build_version)
   description: 'Automatic release by appveyor'
@@ -26,4 +30,4 @@ deploy:
   prerelease: true
   on:
     branch: master
-    APPVEYOR_REPO_TAG: true        # deploy on tag push only
+
