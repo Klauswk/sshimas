@@ -1,0 +1,43 @@
+sudo: required
+language: rust
+rust:
+  - stable
+
+dist: bionic
+
+cache: cargo
+
+before_cache:
+  - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
+  ⋮ # rest of your existing "before_cache"
+
+addons:
+  apt:
+    packages:
+    - libgnome-keyring-dev
+    - icnsutils
+    - graphicsmagick
+    - xz-utils
+    - xvfb
+    - libx11-dev
+    - libxkbfile-dev
+    - libsecret-1-dev
+    - libfontconfig-dev
+    # Build RPM on Ubuntu
+    - rpm
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update ; fi
+
+script:
+  - ./build_deb_pack.sh
+
+deploy:
+  provider: releases
+  api_key: oath
+  file: deb.deb
+  skip_cleanup: true
+
+branches:
+  only:
+  - master
