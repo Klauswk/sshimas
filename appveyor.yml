@@ -1,5 +1,7 @@
 os: Visual Studio 2015
 
+skip_tags: true
+
 environment:
   matrix:
     - channel: stable
@@ -17,7 +19,7 @@ build_script:
 
 artifacts:
 - path: target\release\sshimas.exe
-  name: sshimas.exe
+  name: sshimas
 
 deploy:
   release: sshimas-v$(appveyor_build_version)
@@ -25,7 +27,6 @@ deploy:
   provider: GitHub
   auth_token:
     secure: nuSGI1gaApM0IIUBX0eIQ/6wWj55cNEQIqAH4HmiNLjoRdKMwYHw+bPoUMuwFyxz
-  artifact: target\release\sshimas.exe
   draft: false
   prerelease: true
   on:
