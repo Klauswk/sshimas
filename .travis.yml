@@ -37,7 +37,7 @@ deploy:
   provider: releases
   api_key: $oath
   file: sshimas_0.1.0_amd64.deb
-  cleanup: true
+  skip_cleanup: true
 
 branches:
   only:
