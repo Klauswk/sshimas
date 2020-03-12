@@ -9,7 +9,6 @@ cache: cargo
 
 before_cache:
   - rm -rf "$TRAVIS_HOME/.cargo/registry/src"
-  ⋮ # rest of your existing "before_cache"
 
 addons:
   apt:
