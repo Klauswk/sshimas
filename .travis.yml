@@ -28,7 +28,7 @@ addons:
     - rpm
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then apt-get -qq update ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update ; fi
 
 script:
   - ./build_deb_pack.sh
