@@ -12,7 +12,7 @@ install:
   - rustc -vV
   - cargo -vV
 
-build: 
+build_script: 
   - cargo build --release
 
 deploy:
