@@ -1,9 +1,11 @@
+os: linux
+dist: bionic
+
 sudo: required
 language: rust
 rust:
   - stable
 
-dist: bionic
 
 cache: cargo
 
@@ -26,16 +28,16 @@ addons:
     - rpm
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then apt-get -qq update ; fi
 
 script:
   - ./build_deb_pack.sh
 
 deploy:
   provider: releases
-  api_key: oath
-  file: deb.deb
-  skip_cleanup: true
+  api_key: $oath
+  file: sshimas_0.1.0_amd64.deb
+  cleanup: true
 
 branches:
   only:
