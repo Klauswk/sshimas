@@ -22,7 +22,7 @@ artifacts:
   name: sshimas
 
 deploy:
-  # release: sshimas-v0.1.0
+  release: sshimas-v0.1
   description: 'Automatic release by appveyor'
   provider: GitHub
   auth_token:
@@ -30,4 +30,4 @@ deploy:
   draft: false
   prerelease: true
   on:
-    APPVEYOR_REPO_TAG: true
+    branch: master
