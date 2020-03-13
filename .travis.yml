@@ -33,8 +33,10 @@ before_install:
 script:
   - ./build_deb_pack.sh
 
+before_deploy:
+  - export GIT_TAG=sshimas-v0.1
+
 deploy:
-  release: sshimas-v0.1
   provider: releases
   api_key: $oath
   file: sshimas_0.1.0_amd64.deb
