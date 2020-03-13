@@ -39,7 +39,6 @@ deploy:
   api_key: $oath
   file: sshimas_0.1.0_amd64.deb
   skip_cleanup: true
-  prerelease: true
   on:
     branch: master
 

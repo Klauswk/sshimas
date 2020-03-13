@@ -28,6 +28,6 @@ deploy:
   auth_token:
     secure: nuSGI1gaApM0IIUBX0eIQ/6wWj55cNEQIqAH4HmiNLjoRdKMwYHw+bPoUMuwFyxz
   draft: false
-  prerelease: true
+  prerelease: false
   on:
     branch: master
